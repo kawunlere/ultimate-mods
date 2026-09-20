@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="matrix_green">#FF00FF00</color>
+    <color name="matrix_dark_green">#FF008800</color>
+    <color name="matrix_bright_green">#FFAAFFAA</color>
+    <color name="matrix_cyan">#FF00FFAA</color>
+    <color name="matrix_blue">#FF00AAFF</color>
+    <color name="matrix_pink">#FFFF00AA</color>
+    <color name="hacker_black">#FF000000</color>
+    <color name="hacker_dark_green">#FF0F1F0F</color>
+    <color name="hacker_white">#FFFFFFFF</color>
+    <color name="error_red">#FFFF0000</color>
+    <color name="success_green">#FF00FF00</color>
+</resources>

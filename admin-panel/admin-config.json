@@ -1,0 +1,18 @@
+{
+  "owner_email": "kawunlere@gmail.com",
+  "owner_device_id": "AUTO_GENERATE",
+  "license_keys": [
+    {
+      "key": "UM-OWNER-LIFETIME-2026",
+      "email": "kawunlere@gmail.com",
+      "device": "*",
+      "expires": "9999-12-31",
+      "tier": "OWNER",
+      "features": ["ALL"]
+    }
+  ],
+  "server_endpoints": {
+    "validate": "https://ultimate-mods-api.kawunlere.workers.dev/validate",
+    "patterns": "https://ultimate-mods-api.kawunlere.workers.dev/patterns"
+  }
+}

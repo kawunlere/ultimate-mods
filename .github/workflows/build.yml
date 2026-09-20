@@ -23,15 +23,12 @@ jobs:
         with:
           packages: 'platform-tools build-tools;34.0.0 platforms;android-34'
 
-      - name: Make gradlew executable
-        run: chmod +x app/gradlew
-
       - name: Build Debug APK
         run: |
           cd app
           ./gradlew assembleDebug
 
-      - name: Upload APK as artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: UltimateMods-APK

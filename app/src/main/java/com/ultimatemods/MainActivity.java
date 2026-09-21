@@ -2,6 +2,7 @@ package com.ultimatemods;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -47,20 +48,34 @@ public class MainActivity extends Activity {
         root.addView(section);
 
         loadInstalledApps(root);
-        setContentView(root);
+
+        // Wrap in ScrollView so we can scroll through all apps
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setBackgroundColor(Color.BLACK);
+        scroll.addView(root);
+        setContentView(scroll);
     }
 
     private void loadInstalledApps(LinearLayout container) {
         PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
+            // Include system apps too (USER + SYSTEM flags = all apps)
+            for (PackageInfo appPkg : pm.getInstalledPackages(
+                    PackageManager.GET_META_DATA)) {
                 String pkgName = appPkg.packageName;
+                
+                // Skip our own app
                 if (pkgName.equals(getPackageName())) continue;
-                if (pkgName.startsWith("com.android.")) continue;
-                if (pkgName.startsWith("android.")) continue;
+                
+                // Only skip pure system internals (keep user apps)
+                if (pkgName.equals("android") 
+                    || pkgName.startsWith("com.android.systemui")) continue;
 
-                // Card with icon
+                // Skip very generic system stuff
+                if (pkgName.startsWith("com.android.inputmethod")) continue;
+
+                // Build the app card
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.HORIZONTAL);
                 card.setBackgroundColor(0xFF0F1F0F);
@@ -71,6 +86,7 @@ public class MainActivity extends Activity {
                 cardLp.setMargins(0, 8, 0, 8);
                 card.setLayoutParams(cardLp);
 
+                // Icon
                 ImageView icon = new ImageView(this);
                 try {
                     Drawable dr = pm.getApplicationIcon(appPkg.applicationInfo);
@@ -83,6 +99,7 @@ public class MainActivity extends Activity {
                 icon.setLayoutParams(iconLp);
                 card.addView(icon);
 
+                // Text info
                 LinearLayout infoCol = new LinearLayout(this);
                 infoCol.setOrientation(LinearLayout.VERTICAL);
                 LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
@@ -90,11 +107,13 @@ public class MainActivity extends Activity {
                 infoCol.setLayoutParams(infoLp);
 
                 TextView appName = new TextView(this);
+                String label;
                 try {
-                    appName.setText(pm.getApplicationLabel(appPkg.applicationInfo).toString());
+                    label = pm.getApplicationLabel(appPkg.applicationInfo).toString();
                 } catch (Exception e) {
-                    appName.setText(pkgName);
+                    label = pkgName;
                 }
+                appName.setText(label);
                 appName.setTextColor(Color.GREEN);
                 appName.setTextSize(15);
                 infoCol.addView(appName);
@@ -108,20 +127,26 @@ public class MainActivity extends Activity {
                 card.addView(infoCol);
                 container.addView(card);
 
-                final String finalPkg = pkgName;
-                final String finalLabel = appName.getText().toString();
+                final String fPkg = pkgName;
+                final String fLabel = label;
                 card.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showModMenu(finalPkg, finalLabel);
+                        showModMenu(fPkg, fLabel);
                     }
                 });
                 count++;
+                if (count > 200) break;  // Safety limit
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            TextView err = new TextView(this);
+            err.setText("Error: " + e.getMessage());
+            err.setTextColor(Color.RED);
+            container.addView(err);
+        }
 
         TextView total = new TextView(this);
-        total.setText("\n→ Total apps: " + count);
+        total.setText("\n→ Total apps loaded: " + count);
         total.setTextColor(Color.GREEN);
         total.setTextSize(14);
         total.setPadding(0, 30, 0, 0);
@@ -131,7 +156,8 @@ public class MainActivity extends Activity {
     private void showModMenu(String pkgName, String label) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("⬢ MOD OPTIONS");
-        builder.setMessage("App: " + label + "\n" + pkgName + "\n\nSelect option:");
+        builder.setMessage("App: " + label + "\n" + pkgName + 
+                          "\n\nSelect an option:");
 
         final String[] opts = {
             "🔓 Unlock Premium",
@@ -144,11 +170,11 @@ public class MainActivity extends Activity {
 
         builder.setItems(opts, (d, w) -> {
             switch (w) {
-                case 0: showMsg("🔓 Premium - Coming soon!"); break;
-                case 1: showMsg("📵 Ads - Coming soon!"); break;
-                case 2: showMsg("🔐 Login - Coming soon!"); break;
-                case 3: showMsg("📦 Backup - Coming soon!"); break;
-                case 4: showMsg("🗑️ Uninstall - Coming soon!"); break;
+                case 0: showMsg("🔓 Premium unlock - coming soon"); break;
+                case 1: showMsg("📵 Ad removal - coming soon"); break;
+                case 2: showMsg("🔐 Login bypass - coming soon"); break;
+                case 3: showMsg("📦 APK backup - coming soon"); break;
+                case 4: showMsg("🗑️ Uninstalling..."); break;
             }
         });
         builder.show();

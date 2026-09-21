@@ -61,15 +61,12 @@ public class MainActivity extends Activity {
             for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
                 String pkgName = appPkg.packageName;
                 
-                // Skip our own app
+                // Skip our own app only
                 if (pkgName.equals(getPackageName())) continue;
 
-                // Use flag-based check (system vs user)
-                int appFlags = appPkg.applicationInfo.flags;
-                boolean isSystem = (appFlags & 1) != 0; // FLAG_SYSTEM = 1
-                if (isSystem) continue;
+                // Show ALL apps (including system and user)
+                // No filter - user wants to see everything
 
-                // Build card
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.HORIZONTAL);
                 card.setBackgroundColor(0xFF0F1F0F);
@@ -128,13 +125,12 @@ public class MainActivity extends Activity {
                     }
                 });
                 count++;
-                if (count > 300) break;
+                if (count > 500) break;
             }
         } catch (Exception e) {
             TextView err = new TextView(this);
             err.setText("Error: " + e.getMessage());
-            err.setTextColor(Color.RED);
-            container.addView(err);
+            err.setText(Color.RED);
         }
 
         TextView total = new TextView(this);
@@ -148,8 +144,7 @@ public class MainActivity extends Activity {
     private void showModMenu(String pkgName, String label) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("⬢ MOD OPTIONS");
-        builder.setMessage("App: " + label + "\n" + pkgName + 
-                          "\n\nSelect an option:");
+        builder.setMessage("App: " + label + "\n" + pkgName);
 
         final String[] opts = {
             "🔓 Unlock Premium",

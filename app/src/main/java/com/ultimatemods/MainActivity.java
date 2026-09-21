@@ -2,6 +2,8 @@ package com.ultimatemods;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -12,7 +14,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import java.io.File;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -60,7 +61,7 @@ public class MainActivity extends Activity {
         PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            // Get packages via shell (no filter, ALL packages)
+            // Method 1: Get packages via shell command (no filter)
             Process process = Runtime.getRuntime().exec(
                 new String[]{"sh", "-c", "pm list packages | cut -d':' -f2"});
             BufferedReader reader = new BufferedReader(
@@ -69,20 +70,22 @@ public class MainActivity extends Activity {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
-                if (line.contains(getPackageName())) continue;
+                if (line.equals(getPackageName())) continue;
 
+                // Try to get package info
+                String label;
+                Drawable icon;
                 try {
-                    // Try normal PackageManager first
-                    Drawable dr = pm.getApplicationIcon(line);
-                    String label = pm.getApplicationLabel(line).toString();
-
-                    addAppCard(container, line, label, dr);
-                    count++;
-                } catch (Exception e) {
-                    // Package not in PackageManager - still add it with limited info
-                    addAppCardSimple(container, line);
-                    count++;
+                    PackageInfo pkg = pm.getPackageInfo(line, 0);
+                    label = pm.getApplicationLabel(pkg.applicationInfo).toString();
+                    icon = pkg.applicationInfo.loadIcon(pm);
+                } catch (Exception ex) {
+                    // Package hidden from us - show generic
+                    label = line;
+                    icon = null;
                 }
+                addAppCard(container, line, label, icon);
+                count++;
                 if (count > 300) break;
             }
             reader.close();
@@ -114,7 +117,8 @@ public class MainActivity extends Activity {
         card.setLayoutParams(cardLp);
 
         ImageView iv = new ImageView(this);
-        iv.setImageDrawable(icon);
+        if (icon != null) iv.setImageDrawable(icon);
+        else iv.setBackgroundColor(0xFF222222);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(80, 80);
         iconLp.setMargins(0, 0, 15, 0);
         iv.setLayoutParams(iconLp);
@@ -147,34 +151,6 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 showModMenu(fPkg, fLabel);
-            }
-        });
-    }
-
-    private void addAppCardSimple(LinearLayout container, String pkgName) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundColor(0xFF1A2A1A);
-        card.setPadding(15, 15, 15, 15);
-        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardLp.setMargins(0, 8, 0, 8);
-        card.setLayoutParams(cardLp);
-
-        TextView tv = new TextView(this);
-        tv.setText("📦 " + pkgName);
-        tv.setTextColor(0xFF66AA66);
-        tv.setTextSize(14);
-        card.addView(tv);
-
-        container.addView(card);
-
-        final String fPkg = pkgName;
-        card.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showModMenu(fPkg, fPkg);
             }
         });
     }

@@ -58,18 +58,18 @@ public class MainActivity extends Activity {
         PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            // Get ONLY user-installed apps (no system)
             for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
                 String pkgName = appPkg.packageName;
                 
-                // Only skip our own app
+                // Skip our own app
                 if (pkgName.equals(getPackageName())) continue;
 
-                // Skip only TRUE system apps (using ApplicationInfo flag)
-                boolean isSystemApp = (appPkg.applicationInfo.flags & 
-                    ApplicationInfo.FLAG_SYSTEM) != 0;
-                if (isSystemApp) continue;
+                // Use flag-based check (system vs user)
+                int appFlags = appPkg.applicationInfo.flags;
+                boolean isSystem = (appFlags & 1) != 0; // FLAG_SYSTEM = 1
+                if (isSystem) continue;
 
+                // Build card
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.HORIZONTAL);
                 card.setBackgroundColor(0xFF0F1F0F);
@@ -80,7 +80,6 @@ public class MainActivity extends Activity {
                 cardLp.setMargins(0, 8, 0, 8);
                 card.setLayoutParams(cardLp);
 
-                // Icon
                 ImageView icon = new ImageView(this);
                 try {
                     Drawable dr = pm.getApplicationIcon(appPkg.applicationInfo);

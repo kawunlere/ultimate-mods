@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
@@ -53,13 +54,13 @@ public class MainActivity extends Activity {
         PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            for (PackageInfo pkg : pm.getInstalledPackages(0)) {
-                String name = pkg.packageName;
-                if (name.equals(getPackageName())) continue;
-                if (name.startsWith("com.android.")) continue;
-                if (name.startsWith("android.")) continue;
+            for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
+                String pkgName = appPkg.packageName;
+                if (pkgName.equals(getPackageName())) continue;
+                if (pkgName.startsWith("com.android.")) continue;
+                if (pkgName.startsWith("android.")) continue;
 
-                // Create app card with icon
+                // Card with icon
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.HORIZONTAL);
                 card.setBackgroundColor(0xFF0F1F0F);
@@ -70,11 +71,10 @@ public class MainActivity extends Activity {
                 cardLp.setMargins(0, 8, 0, 8);
                 card.setLayoutParams(cardLp);
 
-                // App icon
                 ImageView icon = new ImageView(this);
                 try {
-                    Drawable drawable = pm.getApplicationIcon(pkg.applicationInfo);
-                    icon.setImageDrawable(drawable);
+                    Drawable dr = pm.getApplicationIcon(appPkg.applicationInfo);
+                    icon.setImageDrawable(dr);
                 } catch (Exception e) {
                     icon.setBackgroundColor(0xFF222222);
                 }
@@ -83,7 +83,6 @@ public class MainActivity extends Activity {
                 icon.setLayoutParams(iconLp);
                 card.addView(icon);
 
-                // App info container
                 LinearLayout infoCol = new LinearLayout(this);
                 infoCol.setOrientation(LinearLayout.VERTICAL);
                 LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
@@ -91,26 +90,30 @@ public class MainActivity extends Activity {
                 infoCol.setLayoutParams(infoLp);
 
                 TextView appName = new TextView(this);
-                appName.setText(pm.getApplicationLabel(pkg.applicationInfo));
+                try {
+                    appName.setText(pm.getApplicationLabel(appPkg.applicationInfo).toString());
+                } catch (Exception e) {
+                    appName.setText(pkgName);
+                }
                 appName.setTextColor(Color.GREEN);
                 appName.setTextSize(15);
                 infoCol.addView(appName);
 
-                TextView pkgName = new TextView(this);
-                pkgName.setText(name);
-                pkgName.setTextColor(0xFF66AA66);
-                pkgName.setTextSize(10);
-                infoCol.addView(pkgName);
+                TextView pkgText = new TextView(this);
+                pkgText.setText(pkgName);
+                pkgText.setTextColor(0xFF66AA66);
+                pkgText.setTextSize(10);
+                infoCol.addView(pkgText);
 
                 card.addView(infoCol);
                 container.addView(card);
 
-                final String pkg = name;
-                final String label = pm.getApplicationLabel(pkg.applicationInfo).toString();
+                final String finalPkg = pkgName;
+                final String finalLabel = appName.getText().toString();
                 card.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showModMenu(pkg, label);
+                        showModMenu(finalPkg, finalLabel);
                     }
                 });
                 count++;
@@ -128,41 +131,30 @@ public class MainActivity extends Activity {
     private void showModMenu(String pkgName, String label) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("⬢ MOD OPTIONS");
-        builder.setMessage("App: " + label + "\nPackage: " + pkgName + 
-                          "\n\nSelect a mod option:");
-        
-        String[] options = {
+        builder.setMessage("App: " + label + "\n" + pkgName + "\n\nSelect option:");
+
+        final String[] opts = {
             "🔓 Unlock Premium",
-            "📵 Remove Ads", 
+            "📵 Remove Ads",
             "🔐 Bypass Login",
             "📦 Backup APK",
             "🗑️ Uninstall App",
             "❌ Cancel"
         };
-        
-        builder.setItems(options, (dialog, which) -> {
-            switch (which) {
-                case 0:
-                    showToast("🔓 Premium unlock - Coming soon!");
-                    break;
-                case 1:
-                    showToast("📵 Ad removal - Coming soon!");
-                    break;
-                case 2:
-                    showToast("🔐 Login bypass - Coming soon!");
-                    break;
-                case 3:
-                    showToast("📦 Backup - Coming soon!");
-                    break;
-                case 4:
-                    showToast("🗑️ Uninstall - Coming soon!");
-                    break;
+
+        builder.setItems(opts, (d, w) -> {
+            switch (w) {
+                case 0: showMsg("🔓 Premium - Coming soon!"); break;
+                case 1: showMsg("📵 Ads - Coming soon!"); break;
+                case 2: showMsg("🔐 Login - Coming soon!"); break;
+                case 3: showMsg("📦 Backup - Coming soon!"); break;
+                case 4: showMsg("🗑️ Uninstall - Coming soon!"); break;
             }
         });
         builder.show();
     }
 
-    private void showToast(String msg) {
-        android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show();
+    private void showMsg(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 }

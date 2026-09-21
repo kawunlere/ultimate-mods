@@ -13,6 +13,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class MainActivity extends Activity {
 
@@ -46,91 +48,48 @@ public class MainActivity extends Activity {
         section.setPadding(0, 20, 0, 20);
         root.addView(section);
 
-        loadInstalledApps(root);
+        loadInstalledApps(root, pm);
 
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setBackgroundColor(Color.BLACK);
         scroll.addView(root);
         setContentView(scroll);
     }
+    
+    // Global PackageManager reference
+    PackageManager pm;
 
-    private void loadInstalledApps(LinearLayout container) {
-        PackageManager pm = getPackageManager();
+    private void loadInstalledApps(LinearLayout container, PackageManager passedPm) {
+        this.pm = passedPm;
+        
+        // First try the system command approach (more reliable)
+        java.util.List<String[]> sysPackages = getPackagesFromSystem();
+        
         int count = 0;
         try {
-            for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
-                String pkgName = appPkg.packageName;
-                
-                // Skip our own app only
-                if (pkgName.equals(getPackageName())) continue;
-
-                // Show ALL apps (including system and user)
-                // No filter - user wants to see everything
-
-                LinearLayout card = new LinearLayout(this);
-                card.setOrientation(LinearLayout.HORIZONTAL);
-                card.setBackgroundColor(0xFF0F1F0F);
-                card.setPadding(15, 15, 15, 15);
-                LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-                cardLp.setMargins(0, 8, 0, 8);
-                card.setLayoutParams(cardLp);
-
-                ImageView icon = new ImageView(this);
-                try {
-                    Drawable dr = pm.getApplicationIcon(appPkg.applicationInfo);
-                    icon.setImageDrawable(dr);
-                } catch (Exception e) {
-                    icon.setBackgroundColor(0xFF222222);
+            if (sysPackages != null && !sysPackages.isEmpty()) {
+                // Use system command result
+                for (String[] info : sysPackages) {
+                    String pkgName = info[0];
+                    if (pkgName.equals(getPackageName())) continue;
+                    
+                    addAppCard(container, pkgName);
+                    count++;
                 }
-                LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(80, 80);
-                iconLp.setMargins(0, 0, 15, 0);
-                icon.setLayoutParams(iconLp);
-                card.addView(icon);
-
-                LinearLayout infoCol = new LinearLayout(this);
-                infoCol.setOrientation(LinearLayout.VERTICAL);
-                LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-                infoCol.setLayoutParams(infoLp);
-
-                TextView appName = new TextView(this);
-                String label;
-                try {
-                    label = pm.getApplicationLabel(appPkg.applicationInfo).toString();
-                } catch (Exception e) {
-                    label = pkgName;
+            } else {
+                // Fallback to PackageManager
+                for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
+                    String pkgName = appPkg.packageName;
+                    if (pkgName.equals(getPackageName())) continue;
+                    addAppCard(container, pkgName);
+                    count++;
                 }
-                appName.setText(label);
-                appName.setTextColor(Color.GREEN);
-                appName.setTextSize(15);
-                infoCol.addView(appName);
-
-                TextView pkgText = new TextView(this);
-                pkgText.setText(pkgName);
-                pkgText.setTextColor(0xFF66AA66);
-                pkgText.setTextSize(10);
-                infoCol.addView(pkgText);
-
-                card.addView(infoCol);
-                container.addView(card);
-
-                final String fPkg = pkgName;
-                final String fLabel = label;
-                card.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showModMenu(fPkg, fLabel);
-                    }
-                });
-                count++;
-                if (count > 500) break;
             }
         } catch (Exception e) {
             TextView err = new TextView(this);
             err.setText("Error: " + e.getMessage());
-            err.setText(Color.RED);
+            err.setTextColor(Color.RED);
+            container.addView(err);
         }
 
         TextView total = new TextView(this);
@@ -139,6 +98,94 @@ public class MainActivity extends Activity {
         total.setTextSize(14);
         total.setPadding(0, 30, 0, 0);
         container.addView(total);
+    }
+
+    private java.util.List<String[]> getPackagesFromSystem() {
+        java.util.List<String[]> result = new java.util.ArrayList<>();
+        try {
+            // Run: pm list packages -f
+            Process process = Runtime.getRuntime().exec("pm list packages -f");
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Format: package:/path com.app.name
+                if (line.contains("package:")) {
+                    int idx = line.indexOf("=");
+                    if (idx > 0) {
+                        String pkg = line.substring(idx + 1).trim();
+                        if (!pkg.isEmpty()) {
+                            result.add(new String[]{pkg, ""});
+                        }
+                    }
+                }
+            }
+            process.waitFor();
+            reader.close();
+        } catch (Exception e) {
+            return null; // Fallback to PackageManager
+        }
+        return result;
+    }
+
+    private void addAppCard(LinearLayout container, String pkgName) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setBackgroundColor(0xFF0F1F0F);
+        card.setPadding(15, 15, 15, 15);
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.setMargins(0, 8, 0, 8);
+        card.setLayoutParams(cardLp);
+
+        ImageView icon = new ImageView(this);
+        try {
+            Drawable dr = pm.getApplicationIcon(pkgName);
+            icon.setImageDrawable(dr);
+        } catch (Exception e) {
+            icon.setBackgroundColor(0xFF222222);
+        }
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(80, 80);
+        iconLp.setMargins(0, 0, 15, 0);
+        icon.setLayoutParams(iconLp);
+        card.addView(icon);
+
+        LinearLayout infoCol = new LinearLayout(this);
+        infoCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        infoCol.setLayoutParams(infoLp);
+
+        TextView appName = new TextView(this);
+        String label;
+        try {
+            label = pm.getApplicationLabel(pkgName).toString();
+        } catch (Exception e) {
+            label = pkgName;
+        }
+        appName.setText(label);
+        appName.setTextColor(Color.GREEN);
+        appName.setTextSize(15);
+        infoCol.addView(appName);
+
+        TextView pkgText = new TextView(this);
+        pkgText.setText(pkgName);
+        pkgText.setTextColor(0xFF66AA66);
+        pkgText.setTextSize(10);
+        infoCol.addView(pkgText);
+
+        card.addView(infoCol);
+        container.addView(card);
+
+        final String fPkg = pkgName;
+        final String fLabel = label;
+        card.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showModMenu(fPkg, fLabel);
+            }
+        });
     }
 
     private void showModMenu(String pkgName, String label) {

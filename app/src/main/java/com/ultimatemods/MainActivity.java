@@ -2,7 +2,6 @@ package com.ultimatemods;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -49,7 +48,6 @@ public class MainActivity extends Activity {
 
         loadInstalledApps(root);
 
-        // Wrap in ScrollView so we can scroll through all apps
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setBackgroundColor(Color.BLACK);
         scroll.addView(root);
@@ -60,22 +58,18 @@ public class MainActivity extends Activity {
         PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            // Include system apps too (USER + SYSTEM flags = all apps)
-            for (PackageInfo appPkg : pm.getInstalledPackages(
-                    PackageManager.GET_META_DATA)) {
+            // Get ONLY user-installed apps (no system)
+            for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
                 String pkgName = appPkg.packageName;
                 
-                // Skip our own app
+                // Only skip our own app
                 if (pkgName.equals(getPackageName())) continue;
-                
-                // Only skip pure system internals (keep user apps)
-                if (pkgName.equals("android") 
-                    || pkgName.startsWith("com.android.systemui")) continue;
 
-                // Skip very generic system stuff
-                if (pkgName.startsWith("com.android.inputmethod")) continue;
+                // Skip only TRUE system apps (using ApplicationInfo flag)
+                boolean isSystemApp = (appPkg.applicationInfo.flags & 
+                    ApplicationInfo.FLAG_SYSTEM) != 0;
+                if (isSystemApp) continue;
 
-                // Build the app card
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.HORIZONTAL);
                 card.setBackgroundColor(0xFF0F1F0F);
@@ -99,7 +93,6 @@ public class MainActivity extends Activity {
                 icon.setLayoutParams(iconLp);
                 card.addView(icon);
 
-                // Text info
                 LinearLayout infoCol = new LinearLayout(this);
                 infoCol.setOrientation(LinearLayout.VERTICAL);
                 LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
@@ -136,7 +129,7 @@ public class MainActivity extends Activity {
                     }
                 });
                 count++;
-                if (count > 200) break;  // Safety limit
+                if (count > 300) break;
             }
         } catch (Exception e) {
             TextView err = new TextView(this);
@@ -161,7 +154,7 @@ public class MainActivity extends Activity {
 
         final String[] opts = {
             "🔓 Unlock Premium",
-            "📵 Remove Ads",
+            "📵 Remove Ads", 
             "🔐 Bypass Login",
             "📦 Backup APK",
             "🗑️ Uninstall App",
@@ -170,10 +163,10 @@ public class MainActivity extends Activity {
 
         builder.setItems(opts, (d, w) -> {
             switch (w) {
-                case 0: showMsg("🔓 Premium unlock - coming soon"); break;
-                case 1: showMsg("📵 Ad removal - coming soon"); break;
-                case 2: showMsg("🔐 Login bypass - coming soon"); break;
-                case 3: showMsg("📦 APK backup - coming soon"); break;
+                case 0: showMsg("🔓 Premium - coming soon"); break;
+                case 1: showMsg("📵 Ads - coming soon"); break;
+                case 2: showMsg("🔐 Login - coming soon"); break;
+                case 3: showMsg("📦 Backup - coming soon"); break;
                 case 4: showMsg("🗑️ Uninstalling..."); break;
             }
         });

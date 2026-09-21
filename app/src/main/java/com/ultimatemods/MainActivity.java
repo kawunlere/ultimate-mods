@@ -2,7 +2,6 @@ package com.ultimatemods;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -13,6 +12,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.File;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -48,43 +48,45 @@ public class MainActivity extends Activity {
         section.setPadding(0, 20, 0, 20);
         root.addView(section);
 
-        loadInstalledApps(root, pm);
+        loadInstalledApps(root);
 
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setBackgroundColor(Color.BLACK);
         scroll.addView(root);
         setContentView(scroll);
     }
-    
-    // Global PackageManager reference
-    PackageManager pm;
 
-    private void loadInstalledApps(LinearLayout container, PackageManager passedPm) {
-        this.pm = passedPm;
-        
-        // First try the system command approach (more reliable)
-        java.util.List<String[]> sysPackages = getPackagesFromSystem();
-        
+    private void loadInstalledApps(LinearLayout container) {
+        PackageManager pm = getPackageManager();
         int count = 0;
         try {
-            if (sysPackages != null && !sysPackages.isEmpty()) {
-                // Use system command result
-                for (String[] info : sysPackages) {
-                    String pkgName = info[0];
-                    if (pkgName.equals(getPackageName())) continue;
-                    
-                    addAppCard(container, pkgName);
+            // Get packages via shell (no filter, ALL packages)
+            Process process = Runtime.getRuntime().exec(
+                new String[]{"sh", "-c", "pm list packages | cut -d':' -f2"});
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                if (line.contains(getPackageName())) continue;
+
+                try {
+                    // Try normal PackageManager first
+                    Drawable dr = pm.getApplicationIcon(line);
+                    String label = pm.getApplicationLabel(line).toString();
+
+                    addAppCard(container, line, label, dr);
+                    count++;
+                } catch (Exception e) {
+                    // Package not in PackageManager - still add it with limited info
+                    addAppCardSimple(container, line);
                     count++;
                 }
-            } else {
-                // Fallback to PackageManager
-                for (PackageInfo appPkg : pm.getInstalledPackages(0)) {
-                    String pkgName = appPkg.packageName;
-                    if (pkgName.equals(getPackageName())) continue;
-                    addAppCard(container, pkgName);
-                    count++;
-                }
+                if (count > 300) break;
             }
+            reader.close();
+            process.waitFor();
         } catch (Exception e) {
             TextView err = new TextView(this);
             err.setText("Error: " + e.getMessage());
@@ -100,35 +102,7 @@ public class MainActivity extends Activity {
         container.addView(total);
     }
 
-    private java.util.List<String[]> getPackagesFromSystem() {
-        java.util.List<String[]> result = new java.util.ArrayList<>();
-        try {
-            // Run: pm list packages -f
-            Process process = Runtime.getRuntime().exec("pm list packages -f");
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Format: package:/path com.app.name
-                if (line.contains("package:")) {
-                    int idx = line.indexOf("=");
-                    if (idx > 0) {
-                        String pkg = line.substring(idx + 1).trim();
-                        if (!pkg.isEmpty()) {
-                            result.add(new String[]{pkg, ""});
-                        }
-                    }
-                }
-            }
-            process.waitFor();
-            reader.close();
-        } catch (Exception e) {
-            return null; // Fallback to PackageManager
-        }
-        return result;
-    }
-
-    private void addAppCard(LinearLayout container, String pkgName) {
+    private void addAppCard(LinearLayout container, String pkgName, String label, Drawable icon) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setBackgroundColor(0xFF0F1F0F);
@@ -139,17 +113,12 @@ public class MainActivity extends Activity {
         cardLp.setMargins(0, 8, 0, 8);
         card.setLayoutParams(cardLp);
 
-        ImageView icon = new ImageView(this);
-        try {
-            Drawable dr = pm.getApplicationIcon(pkgName);
-            icon.setImageDrawable(dr);
-        } catch (Exception e) {
-            icon.setBackgroundColor(0xFF222222);
-        }
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(icon);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(80, 80);
         iconLp.setMargins(0, 0, 15, 0);
-        icon.setLayoutParams(iconLp);
-        card.addView(icon);
+        iv.setLayoutParams(iconLp);
+        card.addView(iv);
 
         LinearLayout infoCol = new LinearLayout(this);
         infoCol.setOrientation(LinearLayout.VERTICAL);
@@ -158,12 +127,6 @@ public class MainActivity extends Activity {
         infoCol.setLayoutParams(infoLp);
 
         TextView appName = new TextView(this);
-        String label;
-        try {
-            label = pm.getApplicationLabel(pkgName).toString();
-        } catch (Exception e) {
-            label = pkgName;
-        }
         appName.setText(label);
         appName.setTextColor(Color.GREEN);
         appName.setTextSize(15);
@@ -184,6 +147,34 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 showModMenu(fPkg, fLabel);
+            }
+        });
+    }
+
+    private void addAppCardSimple(LinearLayout container, String pkgName) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundColor(0xFF1A2A1A);
+        card.setPadding(15, 15, 15, 15);
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.setMargins(0, 8, 0, 8);
+        card.setLayoutParams(cardLp);
+
+        TextView tv = new TextView(this);
+        tv.setText("📦 " + pkgName);
+        tv.setTextColor(0xFF66AA66);
+        tv.setTextSize(14);
+        card.addView(tv);
+
+        container.addView(card);
+
+        final String fPkg = pkgName;
+        card.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showModMenu(fPkg, fPkg);
             }
         });
     }
